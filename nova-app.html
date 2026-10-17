@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nova AI</title>
+<meta name="theme-color" content="#241a5e">
+<style>
+:root{--v:#7c5cff;--c:#22d3ee;--t:#fff;--m:#b8bee8;--g:rgba(255,255,255,.13)}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--t);background:linear-gradient(#241a5e,#0b0d1a) fixed;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{display:flex;align-items:center;padding:14px 20px;font-size:24px}
+header span{flex:1}
+header button{background:none;border:0;font-size:22px;cursor:pointer}
+main{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 14px;max-width:720px;width:100%;margin:0 auto}
+.pane{display:none;flex:1;min-height:0;flex-direction:column}
+.pane.on{display:flex}
+#log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+.b{max-width:80%;padding:9px 12px;border-radius:18px;background:var(--g);white-space:pre-wrap;word-wrap:break-word}
+.b.me{align-self:flex-end;background:linear-gradient(135deg,var(--v),#5b8cff)}
+#chips{display:flex;gap:8px;overflow-x:auto;padding:6px 0}
+.chip{flex:none;border:0;color:#fff;background:var(--g);border-radius:99px;padding:7px 12px;font-size:13px;cursor:pointer}
+.row{display:flex;align-items:center;gap:6px;padding-bottom:10px}
+input,select{flex:1;min-width:0;border:1px solid var(--g);background:rgba(255,255,255,.07);color:#fff;border-radius:28px;padding:13px 16px;font-size:16px;outline:0}
+select option{color:#000}
+.send{background:none;border:0;color:#fff;font-size:22px;padding:8px;cursor:pointer}
+#mic{flex:none;width:58px;height:58px;border:0;border-radius:50%;font-size:24px;cursor:pointer;background:radial-gradient(var(--c),var(--v));animation:p .9s ease-in-out infinite alternate}
+#mic.live{box-shadow:0 0 0 6px rgba(34,211,238,.35)}
+@keyframes p{to{transform:scale(1.1)}}
+canvas{width:100%;height:320px;border-radius:24px;background:rgba(255,255,255,.08);border:1.5px solid var(--g);touch-action:none}
+#st{color:var(--m);padding:10px 0}
+.btn{border:0;border-radius:99px;padding:10px 18px;font-size:15px;cursor:pointer;color:#fff;background:var(--v)}
+.btn.o{background:none;border:1px solid var(--m);color:var(--m)}
+h3{font-weight:500;font-size:16px;margin:16px 0 4px}
+#gl{overflow-y:auto;flex:1}
+.g{display:flex;align-items:center;padding:6px 0}
+.g span{flex:1}
+.t{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--g)}
+.t span{flex:1;word-break:break-word}.t.done span{text-decoration:line-through;opacity:.5}
+.t button{background:none;border:0;color:var(--c);cursor:pointer;font-size:15px}
+.g button{background:none;border:0;color:var(--c);cursor:pointer;font-size:15px}
+nav{display:flex;background:rgba(255,255,255,.12);margin:0 -14px}
+nav button{flex:1;border:0;background:none;color:#fff;padding:10px;font-size:13px;opacity:.6;cursor:pointer}
+nav button.on{opacity:1}
+nav b{display:block;font-size:20px;font-weight:400}
+dialog{border:0;border-radius:20px;padding:20px;background:#1c1840;color:#fff;width:min(90vw,360px)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog p{color:var(--m);font-size:13px;margin:8px 0 14px}
+</style>
+</head>
+<body>
+<header><span>✨ Nova AI</span><button id="mute" aria-label="Mute voice">🔊</button><button id="cog" aria-label="Settings">⚙️</button></header>
+<main>
+  <section class="pane on" id="p0">
+    <div id="log"></div>
+    <div id="chips"></div>
+    <div class="row">
+      <input id="in" placeholder="Ask anything…" autocomplete="off">
+      <button class="send" id="go" aria-label="Send">➤</button>
+      <button id="mic" aria-label="Voice">🎤</button>
+    </div>
+  </section>
+  <section class="pane" id="p1">
+    <canvas id="cv"></canvas>
+    <div id="st">Draw a shape to open its app</div>
+    <div class="row" style="flex-wrap:wrap">
+      <select id="app"></select>
+      <button class="btn o" id="add">+ App</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="save">Save as gesture</button>
+      <button class="btn o" id="clr">Clear</button>
+    </div>
+    <h3>My gestures</h3>
+    <div id="gl"></div>
+  </section>
+  <section class="pane" id="p2">
+    <div class="row" style="padding-top:8px">
+      <input id="tin" placeholder="Add a task…" autocomplete="off">
+      <button class="btn" id="tadd">Add</button>
+    </div>
+    <div id="tl" style="overflow-y:auto;flex:1"></div>
+  </section>
+  <nav>
+    <button class="on" data-t="0"><b>💬</b>Assistant</button>
+    <button data-t="1"><b>✍️</b>Draw</button>
+    <button data-t="2"><b>✅</b>Tasks</button>
+  </nav>
+</main>
+<dialog id="dlg">
+  <h3 style="margin:0 0 8px">Full AI (optional)</h3>
+  <input id="key" type="password" placeholder="Anthropic API key">
+  <p>Stored only in this browser. Without a key, Nova answers from Wikipedia.</p>
+  <button class="btn" id="ok">Save</button> <button class="btn o" id="wipe">Clear chat</button>
+</dialog>
+<script>
+const $=s=>document.querySelector(s);
+const store={get(k,d){try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ---------- apps (opened by link; a web page cannot launch by package name) ---------- */
+const BASE=[["WhatsApp","https://wa.me/"],["Instagram","https://www.instagram.com/"],["YouTube","https://www.youtube.com/"],["Gmail","https://mail.google.com/"],["Maps","https://maps.google.com/"],["Spotify","https://open.spotify.com/"],["Telegram","https://t.me/"],["X","https://x.com/"],["Facebook","https://www.facebook.com/"],["Netflix","https://www.netflix.com/"],["Phone","tel:"],["Messages","sms:"],["Email","mailto:"]].map(([name,url])=>({name,url}));
+let custom=store.get('custom',[]);
+const apps=()=>[...BASE,...custom];
+function openApp(a){/^https?:/.test(a.url)?window.open(a.url,'_blank'):location.href=a.url}
+function findApp(q){q=q.trim().toLowerCase();if(!q)return null;const l=apps();return l.find(a=>a.name.toLowerCase()===q)||l.find(a=>a.name.toLowerCase().includes(q)||q.includes(a.name.toLowerCase()))}
+function fillSelect(){$('#app').innerHTML=apps().map((a,i)=>`<option value="${i}">${a.name.replace(/</g,'&lt;')}</option>`).join('')}
+
+/* ---------- brain ---------- */
+async function smart(text){
+  const t=text.toLowerCase(), key=store.get('key','');
+  if(/\btime\b/.test(t)&&t.length<30)return new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  if(/\b(date|today)\b/.test(t)&&t.length<30)return new Date().toLocaleDateString([],{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const m=t.match(/(-?\d+(?:\.\d+)?)\s*(\+|-|\*|x|times|\/|divided by|plus|minus)\s*(-?\d+(?:\.\d+)?)/);
+  if(m){const a=+m[1],b=+m[3],o=m[2];const r=/^(\+|plus)$/.test(o)?a+b:/^(-|minus)$/.test(o)?a-b:/^(\*|x|times)$/.test(o)?a*b:a/b;return `${m[0]} = ${parseFloat(r.toFixed(6))}`}
+  if(key){
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:500,system:'You are Nova, a friendly voice assistant. Answer briefly in plain text, no markdown.',messages:[{role:'user',content:text}]})}).then(r=>r.json());
+    return r.error?'API error: '+r.error.message:r.content[0].text;
+  }
+  const q=text.replace(/^(who is|who was|what is|what are|tell me about|define|explain)\s+/i,'').replace(/[? ]+$/,'');
+  const s=await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&origin=*&srlimit=1&srsearch='+encodeURIComponent(q)).then(r=>r.json());
+  const hit=s.query.search[0]&&s.query.search[0].title;
+  if(!hit)return "I couldn't find that. Add an API key in settings for full AI answers.";
+  const d=await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(hit)).then(r=>r.json());
+  return (d.extract||'No summary found.').split('. ').slice(0,3).join('. ');
+}
+
+/* ---------- chat ---------- */
+const log=$('#log');
+let chat=store.get('chat',[]),muted=store.get('muted',false);
+function show(t,me){const d=document.createElement('div');d.className='b'+(me?' me':'');d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight}
+function bubble(t,me){show(t,me);chat.push({t,me:!!me});chat=chat.slice(-60);store.set('chat',chat)}
+function speak(t){if(muted)return;try{speechSynthesis.cancel();speechSynthesis.speak(new SpeechSynthesisUtterance(t.slice(0,300)))}catch(e){}}
+async function send(text){
+  text=(text||'').trim();if(!text)return;
+  bubble(text,true);$('#in').value='';
+  let reply;
+  const tm=text.toLowerCase().match(/(?:set (?:a )?)?timer(?: for)? (\d+)\s*(second|sec|minute|min|hour)s?/);
+  if(tm){const n=+tm[1],u=tm[2][0],ms=n*(u==='h'?3600000:u==='m'?60000:1000);
+    setTimeout(()=>{const r=`Time's up! ⏰ (${n} ${tm[2]}${n>1?'s':''})`;bubble(r);speak(r);try{navigator.vibrate&&navigator.vibrate(400)}catch(e){}},ms);
+    reply=`Timer set for ${n} ${tm[2]}${n>1?'s':''} ⏱️ Keep this tab open.`;bubble(reply);speak(reply);return}
+  const tk=text.match(/^(?:please )?(?:add task|remind me to|add to my tasks?)\s+(.+)$/i);
+  if(tk){addTask(tk[1]);reply=`Added to your tasks: ${tk[1]} ✅`;bubble(reply);speak(reply);return}
+  if(/^(show|list|what are) (my )?tasks/i.test(text)){reply=tasks.length?tasks.map((x,i)=>`${i+1}. ${x.done?'✔ ':''}${x.text}`).join('\n'):'You have no tasks.';bubble(reply);speak(tasks.length?`You have ${tasks.length} tasks.`:reply);return}
+  const m=text.toLowerCase().match(/^(?:please )?(?:open|launch|start)\s+(.+)$/);
+  if(m){const a=findApp(m[1]);if(a){reply=`Opening ${a.name} ✅`;bubble(reply);speak(reply);openApp(a);return}reply=`I don't have "${m[1]}" yet. Add it with + App in the Draw tab.`}
+  else{try{reply=await smart(text)}catch(e){reply='Error: '+e.message}}
+  bubble(reply);speak(reply);
+}
+/* ---------- tasks ---------- */
+let tasks=store.get('tasks',[]);
+function addTask(t){t=t.trim();if(!t)return;tasks.push({text:t,done:false});store.set('tasks',tasks);renderT()}
+function renderT(){
+  const L=$('#tl');L.innerHTML=tasks.length?'':'<div style="color:var(--m);padding:12px 0">No tasks yet. Add one above, or say "add task buy milk".</div>';
+  tasks.forEach((x,i)=>{const d=document.createElement('div');d.className='t'+(x.done?' done':'');
+    const c=document.createElement('input');c.type='checkbox';c.checked=x.done;c.style.cssText='flex:none;width:20px;height:20px;padding:0';
+    c.onchange=()=>{x.done=c.checked;store.set('tasks',tasks);renderT()};
+    const s=document.createElement('span');s.textContent=x.text;
+    const b=document.createElement('button');b.textContent='Delete';b.onclick=()=>{tasks.splice(i,1);store.set('tasks',tasks);renderT()};
+    d.append(c,s,b);L.appendChild(d)});
+}
+$('#tadd').onclick=()=>{addTask($('#tin').value);$('#tin').value=''};
+$('#tin').onkeydown=e=>{if(e.key==='Enter'){addTask(e.target.value);e.target.value=''}};
+$('#mute').onclick=()=>{muted=!muted;store.set('muted',muted);$('#mute').textContent=muted?'🔇':'🔊';if(muted)try{speechSynthesis.cancel()}catch(e){}};
+$('#mute').textContent=muted?'🔇':'🔊';
+$('#wipe').onclick=()=>{chat=[];store.set('chat',[]);log.innerHTML='';$('#dlg').close();greet()};
+function greet(){bubble('Hi, I\'m Nova AI ✨ Ask me anything, say "open WhatsApp", or draw a shape to launch an app. Try "set timer 5 minutes" or "add task buy milk".')}
+if(chat.length)chat.forEach(m=>show(m.t,m.me));else greet();
+$('#chips').innerHTML=['What time is it','Open YouTube','Tell me about Mars','12 times 8'].map(c=>`<button class="chip">${c}</button>`).join('');
+$('#chips').onclick=e=>{if(e.target.classList.contains('chip'))send(e.target.textContent)};
+$('#go').onclick=()=>send($('#in').value);
+$('#in').onkeydown=e=>{if(e.key==='Enter')send(e.target.value)};
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+$('#mic').onclick=()=>{
+  if(!SR){bubble("Voice input isn't available in this browser.");return}
+  const r=new SR();r.lang=navigator.language||'en-US';r.onstart=()=>$('#mic').classList.add('live');
+  r.onend=()=>$('#mic').classList.remove('live');r.onresult=e=>send(e.results[0][0].transcript);r.onerror=()=>{};r.start();
+};
+
+/* ---------- gestures ---------- */
+const dd=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function resample(p,n=48){
+  let L=0;for(let i=1;i<p.length;i++)L+=dd(p[i-1],p[i]);
+  const I=L/(n-1),pts=p.slice(),out=[p[0]];let D=0;
+  for(let i=1;i<pts.length;i++){const s=dd(pts[i-1],pts[i]);
+    if(s>0&&D+s>=I){const t=(I-D)/s,np={x:pts[i-1].x+t*(pts[i].x-pts[i-1].x),y:pts[i-1].y+t*(pts[i].y-pts[i-1].y)};out.push(np);pts.splice(i,0,np);D=0}else D+=s}
+  while(out.length<n)out.push(pts[pts.length-1]);return out.slice(0,n);
+}
+function norm(p){
+  const r=resample(p),xs=r.map(o=>o.x),ys=r.map(o=>o.y),x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  const s=Math.max(x1-x0,y1-y0,1),cx=(x0+x1)/2,cy=(y0+y1)/2;return r.map(o=>({x:(o.x-cx)/s,y:(o.y-cy)/s}));
+}
+const gdist=(a,b)=>a.reduce((s,o,i)=>s+dd(o,b[i]),0)/a.length;
+let gests=store.get('gests',[]),pts=[],down=false;
+const cv=$('#cv'),cx=cv.getContext('2d');
+function size(){const r=cv.getBoundingClientRect(),k=devicePixelRatio||1;cv.width=r.width*k;cv.height=r.height*k;cx.setTransform(k,0,0,k,0,0);redraw()}
+function redraw(){
+  cx.clearRect(0,0,cv.width,cv.height);if(pts.length<2)return;
+  const g=cx.createLinearGradient(0,0,cv.clientWidth,cv.clientHeight);g.addColorStop(0,'#7c5cff');g.addColorStop(1,'#22d3ee');
+  cx.strokeStyle=g;cx.lineWidth=7;cx.lineCap=cx.lineJoin='round';cx.beginPath();pts.forEach((o,i)=>i?cx.lineTo(o.x,o.y):cx.moveTo(o.x,o.y));cx.stroke();
+}
+const pos=e=>{const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top}};
+cv.onpointerdown=e=>{down=true;cv.setPointerCapture(e.pointerId);pts=[pos(e)];redraw()};
+cv.onpointermove=e=>{if(down){pts.push(pos(e));redraw()}};
+cv.onpointerup=()=>{if(!down)return;down=false;recognize()};
+function recognize(){
+  if(pts.length<8){$('#st').textContent='Too short — draw a bigger shape';return}
+  const n=norm(pts);let best=null,bd=1e9;
+  gests.forEach(g=>{const d=gdist(n,g.pts);if(d<bd){bd=d;best=g}});
+  if(best&&bd<0.16){const a=findApp(best.name);$('#st').textContent='✓ Opening '+best.name;if(a)openApp(a)}
+  else $('#st').textContent='No match — save this drawing for an app ↓';
+}
+function renderG(){
+  $('#gl').innerHTML=gests.length?'':'<div style="color:var(--m)">None yet</div>';
+  gests.forEach((g,i)=>{const d=document.createElement('div');d.className='g';const s=document.createElement('span');s.textContent=g.name;
+    const b=document.createElement('button');b.textContent='Delete';b.onclick=()=>{gests.splice(i,1);store.set('gests',gests);renderG()};d.append(s,b);$('#gl').appendChild(d)});
+}
+$('#save').onclick=()=>{
+  if(pts.length<8){$('#st').textContent='Draw a shape first';return}
+  const a=apps()[$('#app').value];gests.push({name:a.name,pts:norm(pts)});store.set('gests',gests);
+  $('#st').textContent=`Saved for ${a.name}. Draw it again to launch.`;renderG();
+};
+$('#clr').onclick=()=>{pts=[];redraw();$('#st').textContent='Draw a shape to open its app'};
+$('#add').onclick=()=>{
+  const n=prompt('App name (e.g. Snapchat)');if(!n)return;
+  let u=prompt('Link or scheme that opens it (e.g. https://www.snapchat.com or snapchat://)');if(!u)return;
+  if(!/^[a-z][a-z0-9+.-]*:/i.test(u))u='https://'+u;
+  custom.push({name:n.trim(),url:u.trim()});store.set('custom',custom);fillSelect();$('#app').value=apps().length-1;
+};
+
+/* ---------- tabs + settings ---------- */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.pane').forEach((p,i)=>p.classList.toggle('on',i==b.dataset.t));
+  if(b.dataset.t==='1')size();
+});
+$('#cog').onclick=()=>{$('#key').value=store.get('key','');$('#dlg').showModal()};
+$('#ok').onclick=()=>{store.set('key',$('#key').value.trim());$('#dlg').close()};
+addEventListener('resize',()=>{if($('#p1').classList.contains('on'))size()});
+fillSelect();renderG();renderT();
+</script>
+</body>
+</html>
